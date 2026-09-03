@@ -30,17 +30,6 @@ The app will open at `http://localhost:8501`.
 
 Click the **Open in GitHub Codespaces** badge above — the container builds automatically, installs all dependencies from `requirements.txt`, and launches the app for you. No local setup required.
 
-## Project structure
-
-```
-.
-├── .devcontainer/
-│   └── devcontainer.json      # Codespaces / VS Code dev container config
-├── PTAapp.py                  # Main Streamlit application
-├── requirements.txt           # Python dependencies
-└── README.md
-```
-
 ## Tech stack
 
 - [Streamlit](https://streamlit.io/) — web app framework
@@ -56,6 +45,6 @@ Click the **Open in GitHub Codespaces** badge above — the container builds aut
 | Fetkovich | Multi-rate tests, general applicability | Pr, multiple (Qo, Pwf) test points |
 
 ## Roadmap
-
+up next
 - [ ] TPR (Tubing Performance Relation) curve overlay for nodal analysis
 - [ ] Theoretical (Darcy) productivity index comparison using reservoir/well parameters.
