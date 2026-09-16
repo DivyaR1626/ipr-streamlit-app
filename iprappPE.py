@@ -23,26 +23,26 @@ DEMO_VOGEL_SAT = dict(
     label="Saturated example (Pr ≤ Pb)",
     Pr=2500.0, Pb=2600.0, Pwf=2000.0, Qo=350.0,
     table=pd.DataFrame({"Pwf": [2500, 2250, 2000, 1750, 1500, 1250, 1000, 750, 500, 250, 0], "Qo": [0, 183.536, 350, 499.39, 631.70, 746.95, 845.12, 926.21, 990.24, 1037.19, 1067.07]}),
-    Prf=2200.0,
+    Prf=1500.0,
 )
 DEMO_VOGEL_UNDERSAT = dict(
     label="Undersaturated example (Pr > Pb)",
     Pr=3000.0, Pb=2130.0, Pwf=2500.0, Qo=250.0, 
     table=pd.DataFrame({"Pwf": [3000, 2826, 2652, 2478, 2304, 2130, 1917, 1704, 1491, 1278, 1065, 852, 639, 426, 213, 0 ], "Qo": [0, 87, 174, 261, 348, 435, 536.77, 629.07, 711.9, 785.27, 849.17, 903.6, 948.57, 984.07, 1010.1, 1026.67]}),
-    Prf=2600.0,
+    Prf=2000.0,
 )
 
 DEMO_FETKOVICH_SAT = dict(
     label="Saturated example (Pr ≤ Pb)",
     Pr=3600.0,
     table=pd.DataFrame({"Pwf": [3170, 2890, 2440, 2150], "Qo": [263, 383, 497, 640]}),
-    Prf=2000.0,
+    Prf=2600.0,
 )
 DEMO_FETKOVICH_UNDERSAT = dict(
     label="Undersaturated example (Pr > Pb)",
     Pr=3600.0,
-    table=pd.DataFrame({"Pwf": [3000, 2700, 2400, 2100, 1800, 1500, 1350, 1200, 1050, 900, 750, 600, 450, 300, 150, 0], "Qo": [0.0, 127.48, 254.97, 382.45, 509.93, 637.42, 697.97, 752.15, 799.96, 841.39, 876.45, 905.13, 927.38, 943.38, 952.94, 956.13]}),
-    Prf=2000.0,
+    table=pd.DataFrame({"Pwf": [3000, 2700, 2400, 2100, 1800, 1500, 1350, 1200, 1050, 900, 750, 600, 450, 300, 150, 0], "Qo": [346.78, 470.49, 576.42, 667.08, 743.92, 807.85, 835.18, 859.50, 880.85, 899.29, 914.84, 927.52, 937.37, 944.39, 948.60, 950.00]}),
+    Prf=2600.0,
 )
 
 # Real published field case (Well B, Keokuk Pool, Seminole County, Oklahoma, Aug 1935),
@@ -56,6 +56,9 @@ FIELD_CASE_3 = dict(
         "Qo": [0, 280, 508, 780, 1125, 1335],
     }),
     Prf=1605.0,
+    historical_prf=True,  # 1,605 psi is a REAL recorded pressure (the actual repeat-test
+                          # condition 8 months later) — this is the only dataset where the
+                          # future pressure should stay fixed rather than follow Pr.
     future_actual_table=pd.DataFrame({
         "Pwf": [1605, 1381, 1231, 1120],
         "Qo": [0, 420, 720, 850],
@@ -72,7 +75,9 @@ FIELD_CASE_3_PRESENT_CURVE = dict(
         "Qo": [0, 311.3553721, 624.0096558, 977.7314268, 1125, 1506.812135,
                1793.363642, 2067.796199, 2299.863093, 2489.564324, 2636.899892],
     }),
-    Prf=1400.0,
+    Prf=1605.0,
+    historical_prf=True,  # fixed at the real 8-month repeat-test pressure, same as every
+                          # other Field Case 3 / Well B dataset under Fetkovich.
 )
 FIELD_CASE_3_FUTURE_CURVE = dict(
     label="Field Case 3 — Well B, Keokuk pool, Oklahoma (1935) — future IPR curve (full curve)",
@@ -83,6 +88,10 @@ FIELD_CASE_3_FUTURE_CURVE = dict(
                1614.220934, 1832.153431, 2015.793646, 2165.141578],
     }),
     Prf=1300.0,
+    historical_prf=True,  # fixed at a further published projection point (1,300 psi), since
+                          # this dataset's own Pr is already 1,605 (the retest condition) — a
+                          # further-future prediction needs a genuinely different pressure,
+                          # not the same 1,605 psi used by the other two Well B datasets.
 )
 
 # Same Well B / Keokuk Pool field data adapted for Simple IPR (constant J) — uses one
@@ -107,6 +116,7 @@ FIELD_CASE_3_SIMPLE = dict(
 FIELD_CASE_3_VOGEL_SAT = dict(
     label="Field Case 3 — Well B, Keokuk pool, Oklahoma (1935) (assumed Pb = 1900 psi, saturated)",
     Pr=1714.0, Pb=1900.0, Pwf=1272.0, Qo=780.0, Prf=1605.0,
+    historical_prf=True,  # same real 8-month repeat-test pressure as the Fetkovich Well B case
     table=pd.DataFrame({
         "Pwf": [1714, 1583, 1443, 1272, 1196, 982],
         "Qo": [0, 280, 508, 780, 1125, 1335],
@@ -115,6 +125,7 @@ FIELD_CASE_3_VOGEL_SAT = dict(
 FIELD_CASE_3_VOGEL_UNDERSAT = dict(
     label="Field Case 3 — Well B, Keokuk pool, Oklahoma (1935) (assumed Pb = 1500 psi, undersaturated)",
     Pr=1714.0, Pb=1500.0, Pwf=1272.0, Qo=780.0, Prf=1605.0,
+    historical_prf=True,
     table=pd.DataFrame({
         "Pwf": [1714, 1583, 1443, 1272, 1196, 982],
         "Qo": [0, 280, 508, 780, 1125, 1335],
@@ -396,6 +407,7 @@ with st.sidebar:
     method_key = method[0]
 
     demo_dict = None
+    demo_label = None
     if data_source == "Use demo data":
         st.header("3 · Demo dataset")
         options = DEMO_LABELS_BY_METHOD[method_key]
@@ -407,6 +419,12 @@ with st.sidebar:
         _, demo_dict = DEMO_LOOKUP[demo_label]
     else:
         st.caption("Not used — you're uploading your own data.")
+
+    # Used to scope widget keys (like the future-pressure input) to the currently
+    # selected dataset, so switching datasets resets those widgets to the new
+    # dataset's own defaults instead of Streamlit reusing a stale value from
+    # whichever dataset was previously selected.
+    demo_key_suffix = demo_label if demo_label is not None else "custom"
 
     st.header("📐 Formulas")
     with st.expander("View formulas for the selected method", expanded=False):
@@ -484,6 +502,18 @@ st.caption("Build Inflow Performance Relationship curves using the Simple (const
            "Vogel's, and Fetkovich's method. Use the sidebar to set the data source, method, "
            "demo dataset (or upload), and to review the formulas.")
 
+with st.expander("ℹ️ About the Well B (Keokuk Pool) demo datasets"):
+    st.markdown(
+        "Several demo datasets in this app come from a real, published well test — "
+        "**Well B, Keokuk Pool, Seminole County, Oklahoma (August 1935)** — rather than "
+        "synthetic numbers, so all three IPR methods can be compared on the same real well. "
+        "The Fetkovich multi-rate test case is especially notable: the well was genuinely "
+        "**re-tested 8 months later** after reservoir pressure had dropped to 1,605 psi. "
+        "That real repeat test is available to overlay directly against this app's own "
+        "future-IPR prediction — a way to check the method's forecast against what actually "
+        "happened in the field, not just against itself."
+    )
+
 st.header("Check the data")
 if user_df is not None:
     st.dataframe(user_df, use_container_width=True)
@@ -521,9 +551,12 @@ if method_key == "1":
     d = demo_dict if demo_dict is not None else dict(Pr=2000.0, Pwf=1500.0, Qo=200.0)
 
     c1, c2, c3 = st.columns(3)
-    Pr = c1.number_input("Average reservoir pressure, Pr (psi)", value=float(d["Pr"]), min_value=0.0)
-    Pwf_s = c2.number_input("Stabilized Pwf (psi)", value=float(d["Pwf"]), min_value=0.0, max_value=Pr)
-    Qo_s = c3.number_input("Stabilized Qo (STB/day)", value=float(d["Qo"]), min_value=0.0)
+    Pr = c1.number_input("Average reservoir pressure, Pr (psi)", value=float(d["Pr"]), min_value=0.0,
+                          key=f"simple_pr_{demo_key_suffix}")
+    Pwf_s = c2.number_input("Stabilized Pwf (psi)", value=float(d["Pwf"]), min_value=0.0, max_value=Pr,
+                             key=f"simple_pwf_{demo_key_suffix}")
+    Qo_s = c3.number_input("Stabilized Qo (STB/day)", value=float(d["Qo"]), min_value=0.0,
+                            key=f"simple_qo_{demo_key_suffix}")
 
     if Pwf_s >= Pr:
         st.warning("Pwf must be less than Pr.")
@@ -534,9 +567,13 @@ if method_key == "1":
         fig.add_trace(go.Scatter(x=qo_c, y=pwf_c, mode="lines", name="IPR curve"))
         fig.add_trace(go.Scatter(x=[Qo_s], y=[Pwf_s], mode="markers", name="Test point",
                                   marker=dict(size=10, color="red")))
+        fig.add_trace(go.Scatter(x=[AOF], y=[0], mode="markers+text",
+                                  text=[f"AOF = {AOF:,.0f}"], textposition="top center",
+                                  marker=dict(size=9, color="#1f77b4"), showlegend=False))
         fig.update_layout(title="IPR Curve (Simple / Constant J)",
                            xaxis_title="Qo (STB/day)", yaxis_title="Pwf (psi)",
-                           yaxis=dict(rangemode="tozero"), xaxis=dict(rangemode="tozero"),
+                           yaxis=dict(range=[-Pr * 0.06, Pr * 1.08]),
+                           xaxis=dict(rangemode="tozero"),
                            height=520, margin=dict(t=60, b=60, l=60, r=30))
         st.plotly_chart(fig, use_container_width=True)
 
@@ -561,8 +598,10 @@ elif method_key == "2":
     d = demo_dict if demo_dict is not None else dict(Pr=3000.0, Pb=2500.0, Pwf=2600.0, Qo=300.0, Prf=2700.0)
 
     c1, c2 = st.columns(2)
-    Pr = c1.number_input("Average reservoir pressure, Pr (psi)", value=float(d["Pr"]), min_value=0.0)
-    Pb = c2.number_input("Bubble-point pressure, Pb (psi)", value=float(d["Pb"]), min_value=0.0)
+    Pr = c1.number_input("Average reservoir pressure, Pr (psi)", value=float(d["Pr"]), min_value=0.0,
+                          key=f"vogel_pr_{demo_key_suffix}")
+    Pb = c2.number_input("Bubble-point pressure, Pb (psi)", value=float(d["Pb"]), min_value=0.0,
+                          key=f"vogel_pb_{demo_key_suffix}")
 
     if Pr <= Pb:
         st.success(f"Since Pr ({Pr:,.0f}) ≤ Pb ({Pb:,.0f}) → **Saturated reservoir**. "
@@ -575,14 +614,28 @@ elif method_key == "2":
 
     c3, c4 = st.columns(2)
     Pwf_s = c3.number_input("Stabilized Pwf test point (psi) — adjust if needed",
-                             value=float(d["Pwf"]), min_value=0.0, max_value=Pr)
-    Qo_s = c4.number_input("Stabilized Qo test point (STB/day)", value=float(d["Qo"]), min_value=0.0)
+                             value=float(d["Pwf"]), min_value=0.0, max_value=Pr,
+                             key=f"vogel_pwf_{demo_key_suffix}")
+    Qo_s = c4.number_input("Stabilized Qo test point (STB/day)", value=float(d["Qo"]), min_value=0.0,
+                            key=f"vogel_qo_{demo_key_suffix}")
 
     do_future = st.checkbox("Also predict a future IPR curve at a different reservoir pressure", value=True)
     Prf = None
     if do_future:
+        # The two Well B Vogel demos share the same real 8-month repeat-test pressure as the
+        # Fetkovich Well B case, so that pressure stays fixed. Every other dataset (including
+        # custom/no-demo input) gets a default that tracks whatever Pr is currently set to.
+        is_historical_prf = demo_dict is not None and demo_dict.get("historical_prf", False)
+        if is_historical_prf:
+            default_Prf = d["Prf"]
+            prf_key = f"vogel_prf_{demo_key_suffix}"
+        else:
+            default_Prf = max(100.0, Pr - 1000.0)
+            prf_key = f"vogel_prf_{demo_key_suffix}_{Pr:.0f}"
+
         Prf = st.number_input("Future average reservoir pressure, Pr,future (psi)",
-                               value=float(d["Prf"]), min_value=0.0)
+                               value=float(default_Prf), min_value=0.0,
+                               key=prf_key)
 
     if case == "saturated":
         res = vogel_saturated(Pr, Pwf_s, Qo_s, Prf if do_future else None)
@@ -603,12 +656,23 @@ elif method_key == "2":
                                   name="Linear IPR (constant J)", line=dict(dash="dot")))
         fig.add_trace(go.Scatter(x=[Qo_s], y=[Pwf_s], mode="markers", name="Test point",
                                   marker=dict(size=10, color="red")))
+        fig.add_trace(go.Scatter(x=[res["Qomax"]], y=[0], mode="markers+text",
+                                  text=[f"(Qo)max = {res['Qomax']:,.0f}"], textposition="top center",
+                                  marker=dict(size=9, color="#1f77b4"), showlegend=False))
+        linear_AOF = res["J"] * Pr
+        fig.add_trace(go.Scatter(x=[linear_AOF], y=[0], mode="markers+text",
+                                  text=[f"Linear AOF = {linear_AOF:,.0f}"], textposition="bottom center",
+                                  marker=dict(size=8, color="gray", symbol="diamond"), showlegend=False))
         if do_future:
             fig.add_trace(go.Scatter(x=res["qo_f"], y=res["pwf_f"], mode="lines",
                                       name=f"Future Vogel IPR (Pr={Prf:,.0f})", line=dict(dash="dash")))
+            fig.add_trace(go.Scatter(x=[res["Qomax_f"]], y=[0], mode="markers+text",
+                                      text=[f"Future (Qo)max = {res['Qomax_f']:,.0f}"], textposition="top left",
+                                      marker=dict(size=9, color="#87ceeb"), showlegend=False))
         fig.update_layout(title="Vogel IPR — Saturated Reservoir",
                            xaxis_title="Qo (STB/day)", yaxis_title="Pwf (psi)",
-                           yaxis=dict(rangemode="tozero"), xaxis=dict(rangemode="tozero"),
+                           yaxis=dict(range=[-Pr * 0.08, Pr * 1.08]),
+                           xaxis=dict(rangemode="tozero"),
                            height=520, margin=dict(t=60, b=60, l=60, r=30))
         st.plotly_chart(fig, use_container_width=True)
 
@@ -653,12 +717,20 @@ elif method_key == "2":
         fig.add_trace(go.Scatter(x=[Qo_s], y=[Pwf_s], mode="markers", name="Test point",
                                   marker=dict(size=10, color="red")))
         fig.add_hline(y=Pb, line_dash="dot", annotation_text="Pb", annotation_position="right")
+        fig.add_trace(go.Scatter(x=[res["Qomax_total"]], y=[0], mode="markers+text",
+                                  text=[f"(Qo)max total = {res['Qomax_total']:,.0f}"], textposition="top center",
+                                  marker=dict(size=9, color="#1f77b4"), showlegend=False))
         if do_future:
             fig.add_trace(go.Scatter(x=res["qo_f"], y=res["pwf_f"], mode="lines",
                                       name=f"Future IPR (Pr={Prf:,.0f})", line=dict(dash="dash")))
+            fig.add_trace(go.Scatter(x=[res["Qomax_total_f"]], y=[0], mode="markers+text",
+                                      text=[f"Future (Qo)max total = {res['Qomax_total_f']:,.0f}"],
+                                      textposition="top left",
+                                      marker=dict(size=9, color="#87ceeb"), showlegend=False))
         fig.update_layout(title="Vogel IPR — Undersaturated Reservoir",
                            xaxis_title="Qo (STB/day)", yaxis_title="Pwf (psi)",
-                           yaxis=dict(rangemode="tozero"), xaxis=dict(rangemode="tozero"),
+                           yaxis=dict(range=[-Pr * 0.08, Pr * 1.08]),
+                           xaxis=dict(rangemode="tozero"),
                            height=520, margin=dict(t=60, b=60, l=60, r=30))
         st.plotly_chart(fig, use_container_width=True)
 
@@ -701,25 +773,6 @@ else:
     if demo_dict is not None:
         default_Pr = demo_dict["Pr"]
         default_table = demo_dict["table"]
-        default_Prf = demo_dict["Prf"]
-    else:
-        # Fallback values when uploading your own data
-        default_Pr = 3600.0
-        default_table = pd.DataFrame({
-            "Pwf": [3170, 2890, 2440, 2150],
-            "Qo": [263, 383, 497, 640]
-        })
-        default_Prf = 2000.0
-
-    actual_future_table = None
-
-    if demo_dict is not None:
-        actual_future_table = demo_dict.get("future_actual_table")
-
-    if demo_dict is not None:
-        default_Pr = demo_dict["Pr"]
-        default_table = demo_dict["table"]
-        default_Prf = demo_dict["Prf"]
         actual_future_table = demo_dict.get("future_actual_table")
         if actual_future_table is not None:
             st.caption("A real, published multi-rate test. The same well was re-tested 8 months "
@@ -729,6 +782,14 @@ else:
         elif "note" in demo_dict:
             st.caption(demo_dict["note"] + " Since this is real historical production data rather "
                        "than a controlled test, treat the fitted n and C as approximate.")
+    else:
+        # Fallback values when uploading your own data
+        default_Pr = 3600.0
+        default_table = pd.DataFrame({
+            "Pwf": [3170, 2890, 2440, 2150],
+            "Qo": [263, 383, 497, 640]
+        })
+        actual_future_table = None
 
     if user_df is not None:
         pwf_col = guess_column(user_df, ["pwf", "bottom"])
@@ -741,7 +802,8 @@ else:
             st.warning("Couldn't auto-detect Pwf/Qo columns in your upload — showing the demo "
                        "table below; edit it with your own values.")
 
-    Pr = st.number_input("Average reservoir pressure, Pr (psi)", value=float(default_Pr), min_value=0.0)
+    Pr = st.number_input("Average reservoir pressure, Pr (psi)", value=float(default_Pr), min_value=0.0,
+                          key=f"fetk_pr_{demo_key_suffix}")
 
     st.write("Multi-rate test data (edit, add, or delete rows as needed — the regression uses "
              "least squares across every row, so keep only 2 rows to reproduce a classic "
@@ -757,8 +819,22 @@ else:
     Prf = None
     show_actual_future = False
     if do_future:
+        # The real Well B multi-rate dataset carries a genuine historical future pressure
+        # (the actual repeat-test condition) — keep that fixed. Every other dataset (including
+        # custom uploads) gets a default that tracks whatever Pr is currently set to, so
+        # editing Pr updates the suggested future pressure instead of leaving behind a
+        # stale, unrelated number.
+        is_historical_prf = demo_dict is not None and demo_dict.get("historical_prf", False)
+        if is_historical_prf:
+            default_Prf = demo_dict["Prf"]
+            prf_key = f"fetk_prf_{demo_key_suffix}"
+        else:
+            default_Prf = max(100.0, Pr - 1000.0)
+            prf_key = f"fetk_prf_{demo_key_suffix}_{Pr:.0f}"
+
         Prf = st.number_input("Future average reservoir pressure, Pr,future (psi)",
-                               value=float(default_Prf), min_value=0.0, key="fetk_prf")
+                               value=float(default_Prf), min_value=0.0,
+                               key=prf_key)
 
         if actual_future_table is not None:
             show_actual_future = st.checkbox(
@@ -840,7 +916,7 @@ else:
                 ))
         fig.update_layout(title="Fetkovich IPR Curve",
                            xaxis_title="Qo (STB/day)", yaxis_title="Pwf (psi)",
-                           yaxis=dict(rangemode="tozero"),
+                           yaxis=dict(range=[-Pr * 0.08, Pr * 1.08]),
                            xaxis=dict(rangemode="tozero"),
                            height=520,
                            margin=dict(t=60, b=60, l=60, r=30))
