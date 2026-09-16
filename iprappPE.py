@@ -132,6 +132,27 @@ FIELD_CASE_3_VOGEL_UNDERSAT = dict(
     }),
 )
 
+# Everything needed to reproduce the "Compare" sheet: New Correlation vs Vogel's vs
+# Fetkovich's, all three checked against the well's own real multi-rate test data (present)
+# and the real 8-month repeat test (future) — matches the reference workbook exactly.
+FIELD_CASE_3_COMPARE = dict(
+    label="Field Case 3 — Well B, Keokuk Pool, Oklahoma (1935) — method comparison",
+    Pr=1714.0, Pb=3420.0,
+    calib_pwf=1196.0, calib_qo=1125.0,  # the single test point used to back-calculate (Qo)max
+    fet_calib_pwf=[1443.0, 1196.0], fet_calib_qo=[508.0, 1125.0],  # 2-point Fetkovich fit
+    C1_present=0.41,
+    table=pd.DataFrame({
+        "Pwf": [1714, 1583, 1443, 1272, 1196, 982],
+        "Qo": [0, 280, 508, 780, 1125, 1335],
+    }),
+    Prf=1605.0,
+    C1_future=0.49,
+    future_actual_table=pd.DataFrame({
+        "Pwf": [1605, 1381, 1231, 1120],
+        "Qo": [0, 420, 720, 850],
+    }),
+)
+
 
 
 METHOD_LABELS = {
@@ -316,6 +337,46 @@ def fetkovich(Pr, pwf_arr, qo_arr, Prf=None):
     return out
 
 
+def new_correlation(Pr, Pwf_test, Qo_test, C1, Prf=None, C1_f=None):
+    """Generalized Vogel-type IPR: Qo = Qomax * [1 - C1*(Pwf/Pr) - (1-C1)*(Pwf/Pr)^2].
+    Vogel's method is the special case C1 = 0.2 (fixed); here C1 is a free coefficient,
+    back-calculated / tuned against one calibration test point so the curve can be fit
+    tighter to a specific well. Future (Qo)max uses Eickmeier's equation:
+    Qomax,f = Qomax,p * (Pr,f / Pr,p)^3 — a cube-of-pressure-ratio scaling, distinct
+    from Standing's future-Vogel equation used elsewhere in this app.
+    """
+    Qomax = Qo_test / (1 - C1 * (Pwf_test / Pr) - (1 - C1) * (Pwf_test / Pr) ** 2)
+    pwf_curve = np.linspace(Pr, 0, 25)
+    qo_curve = Qomax * (1 - C1 * (pwf_curve / Pr) - (1 - C1) * (pwf_curve / Pr) ** 2)
+    out = dict(Qomax=Qomax, pwf=pwf_curve, qo=qo_curve)
+
+    if Prf is not None:
+        Qomax_f = Qomax * (Prf / Pr) ** 3  # Eickmeier's equation
+        pwf_f = np.linspace(Prf, 0, 25)
+        qo_f = Qomax_f * (1 - C1_f * (pwf_f / Prf) - (1 - C1_f) * (pwf_f / Prf) ** 2)
+        out.update(Qomax_f=Qomax_f, pwf_f=pwf_f, qo_f=qo_f)
+
+    return out
+
+
+def eval_new_corr(pwf_arr, Pr, Qomax, C1):
+    """Evaluate the New-Correlation / Vogel equation at specific Pwf points (for
+    comparing predicted vs. actual test-data rates, rather than drawing a curve)."""
+    pwf_arr = np.asarray(pwf_arr, dtype=float)
+    return Qomax * (1 - C1 * (pwf_arr / Pr) - (1 - C1) * (pwf_arr / Pr) ** 2)
+
+
+def pct_error(pred, actual):
+    """Percentage error vs. actual test data: |pred - actual| / actual * 100.
+    Rows where actual = 0 (e.g. the Pwf = Pr point) are left as NaN — undefined %
+    error, excluded from the average rather than treated as a zero error."""
+    pred = np.asarray(pred, dtype=float)
+    actual = np.asarray(actual, dtype=float)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        err = np.where(actual > 0, np.abs(pred - actual) / actual * 100, np.nan)
+    return err
+
+
 # =====================================================================================
 #  DATA LOADING HELPERS
 # =====================================================================================
@@ -360,13 +421,22 @@ def render_formulas(method_key):
         st.markdown("Future IPR:")
         st.latex(r"J_f = J_p\left(\dfrac{P_{r,f}}{P_{r,p}}\right)^2")
 
-    else:
+    elif method_key == "3":
         st.markdown("**Fetkovich (1973) empirical deliverability equation:**")
         st.latex(r"Q_o = C\,(P_r^2 - P_{wf}^2)^n")
         st.markdown("Fitted via log-log linear regression of the test data:")
         st.latex(r"\log Q_o = n \log(P_r^2 - P_{wf}^2) + \log C")
         st.markdown("Future IPR — n assumed unchanged, C scaled with pressure:")
         st.latex(r"C_f = C_p\left(\dfrac{P_{r,f}}{P_{r,p}}\right)")
+
+    else:
+        st.markdown("**'New Correlation' — generalized Vogel-type IPR with a free coefficient C1:**")
+        st.latex(r"Q_o(P_{wf}) = (Q_o)_{max}\left[1 - C_1\left(\frac{P_{wf}}{P_r}\right) - (1-C_1)\left(\frac{P_{wf}}{P_r}\right)^2\right]")
+        st.markdown("(Vogel's method is the special case C1 = 0.2, shown alongside it for comparison.)")
+        st.markdown("Future (Qo)max — Eickmeier's equation (used for both New Correlation and Vogel here):")
+        st.latex(r"(Q_o)_{max,f} = (Q_o)_{max,p}\left(\dfrac{P_{r,f}}{P_{r,p}}\right)^3")
+        st.markdown("Percentage error vs. actual test data:")
+        st.latex(r"\%\,\text{error} = \dfrac{|Q_{o,pred} - Q_{o,actual}|}{Q_{o,actual}} \times 100")
 
 
 # =====================================================================================
@@ -402,13 +472,15 @@ with st.sidebar:
     st.header("2 · Method")
     method = st.radio(
         "Select IPR method",
-        ["1. IPR", "2. Vogel's", "3. Fetkovich's"],
+        ["1. IPR", "2. Vogel's", "3. Fetkovich's", "4. Compare (Well B)"],
     )
     method_key = method[0]
 
     demo_dict = None
     demo_label = None
-    if data_source == "Use demo data":
+    if method_key == "4":
+        pass
+    elif data_source == "Use demo data":
         st.header("3 · Demo dataset")
         options = DEMO_LABELS_BY_METHOD[method_key]
         if len(options) > 1:
@@ -514,28 +586,29 @@ with st.expander("ℹ️ About the Well B (Keokuk Pool) demo datasets"):
         "happened in the field, not just against itself."
     )
 
-st.header("Check the data")
-if user_df is not None:
-    st.dataframe(user_df, use_container_width=True)
-elif data_source == "Upload my own data":
-    st.write("No file uploaded yet — use the sidebar to upload a file, or switch to demo data.")
-else:
-    if method_key == "3":
-        if "note" in demo_dict:
-            st.caption(demo_dict["note"])
-        st.dataframe(demo_dict["table"], use_container_width=True)
-        if "future_actual_table" in demo_dict:
-            st.caption("This scenario also has a real repeat test taken later — see the "
-                       "future-prediction section below to overlay it.")
-            with st.expander("Preview the future repeat-test data"):
-                st.dataframe(demo_dict["future_actual_table"], use_container_width=True)
+if method_key != "4":
+    st.header("Check the data")
+    if user_df is not None:
+        st.dataframe(user_df, use_container_width=True)
+    elif data_source == "Upload my own data":
+        st.write("No file uploaded yet — use the sidebar to upload a file, or switch to demo data.")
     else:
-        scalar_rows = {k: v for k, v in demo_dict.items()
-                       if k not in ("label", "table", "future_actual_table")}
-        st.dataframe(pd.DataFrame([scalar_rows]), use_container_width=True)
-        if "table" in demo_dict:
-            with st.expander("Preview the full reference curve for this dataset"):
-                st.dataframe(demo_dict["table"], use_container_width=True)
+        if method_key == "3":
+            if "note" in demo_dict:
+                st.caption(demo_dict["note"])
+            st.dataframe(demo_dict["table"], use_container_width=True)
+            if "future_actual_table" in demo_dict:
+                st.caption("This scenario also has a real repeat test taken later — see the "
+                           "future-prediction section below to overlay it.")
+                with st.expander("Preview the future repeat-test data"):
+                    st.dataframe(demo_dict["future_actual_table"], use_container_width=True)
+        else:
+            scalar_rows = {k: v for k, v in demo_dict.items()
+                           if k not in ("label", "table", "future_actual_table")}
+            st.dataframe(pd.DataFrame([scalar_rows]), use_container_width=True)
+            if "table" in demo_dict:
+                with st.expander("Preview the full reference curve for this dataset"):
+                    st.dataframe(demo_dict["table"], use_container_width=True)
 
 st.divider()
 
@@ -756,7 +829,7 @@ elif method_key == "2":
 # =====================================================================================
 #  METHOD 3 — FETKOVICH
 # =====================================================================================
-else:
+elif method_key == "3":
     # Main panel heading changes according to selected Fetkovich demo
     if demo_dict is not None:
         st.header(f"Fetkovich's Method — {demo_dict['label']}")
@@ -948,6 +1021,193 @@ else:
                                 curve_df.to_csv(index=False).encode(), "fetkovich_ipr.csv",
                                 key="fetk_ipr_dl")
 
+# =====================================================================================
+#  METHOD 4 — COMPARE (Well B: New Correlation vs Vogel's vs Fetkovich's)
+# =====================================================================================
+else:
+    cc = FIELD_CASE_3_COMPARE
+    st.header(f"Compare all three methods — {cc['label']}")
+    st.write(
+        "Runs the tunable **New Correlation**, **Vogel's**, and **Fetkovich's** methods "
+        "side by side on the real Well B (Keokuk Pool) test data, and checks each one's "
+        "predicted rate against what was actually measured."
+    )
+
+    view = st.radio("View", ["Present", "Future"], horizontal=True, key="cmp_view")
+    Pr = cc["Pr"]
+    table = cc["table"]
+
+    if view == "Present":
+        C1 = st.number_input(
+            "New Correlation coefficient, C1  (Vogel = 0.2 fixed, shown for reference)",
+            value=float(cc["C1_present"]), min_value=0.0, max_value=1.0, step=0.01,
+            key="cmp_c1_present",
+        )
+
+        newc = new_correlation(Pr, cc["calib_pwf"], cc["calib_qo"], C1)
+        vogel = new_correlation(Pr, cc["calib_pwf"], cc["calib_qo"], 0.2)
+        # Matches the reference workbook: Fetkovich here is fit from the same two
+        # calibration points (1443, 1196 psi) rather than a least-squares fit across
+        # every test row — a classic two-point Fetkovich fit.
+        fet = fetkovich(Pr, cc["fet_calib_pwf"], cc["fet_calib_qo"])
+
+        pwf_pts = table["Pwf"].values.astype(float)
+        actual = table["Qo"].values.astype(float)
+        pred_new = eval_new_corr(pwf_pts, Pr, newc["Qomax"], C1)
+        pred_vog = eval_new_corr(pwf_pts, Pr, vogel["Qomax"], 0.2)
+        pred_fet = fet["C"] * (Pr ** 2 - pwf_pts ** 2) ** fet["n"]
+
+        st.subheader("Test data table")
+        comp_df = pd.DataFrame({
+            "Pwf (psi)": pwf_pts, "Oil Rate — actual (bbl/day)": actual,
+            "New Correlation — Qo": pred_new, "Vogel's — Qo": pred_vog, "Fetkovich's — Qo": pred_fet,
+        })
+        st.dataframe(comp_df.style.format({c: "{:.2f}" for c in comp_df.columns[1:]}),
+                     use_container_width=True)
+
+        st.subheader("Percentage error (vs. actual)")
+        err_df = pd.DataFrame({
+            "New Correlation": pct_error(pred_new, actual),
+            "Vogel's": pct_error(pred_vog, actual),
+            "Fetkovich's": pct_error(pred_fet, actual),
+        })
+        st.dataframe(err_df.style.format("{:.2f}"), use_container_width=True)
+
+        st.subheader("Average absolute errors")
+        avg_err = pd.DataFrame({
+            "Method": ["New Correlation", "Vogel's", "Fetkovich's"],
+            "Average absolute error (%)": [np.nanmean(err_df[c]) for c in
+                                            ["New Correlation", "Vogel's", "Fetkovich's"]],
+        })
+        st.table(avg_err.style.format({"Average absolute error (%)": "{:.2f}"}))
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=newc["qo"], y=newc["pwf"], mode="lines", name="New Correlation"))
+        fig.add_trace(go.Scatter(x=vogel["qo"], y=vogel["pwf"], mode="lines", name="Vogel's"))
+        fig.add_trace(go.Scatter(x=fet["qo"], y=fet["pwf"], mode="lines", name="Fetkovich's"))
+        fig.add_trace(go.Scatter(x=actual, y=pwf_pts, mode="markers", name="Actual",
+                                  marker=dict(size=10, color="green", symbol="diamond")))
+        fig.update_layout(title="IPR curve — method comparison (present)",
+                           xaxis_title="Qo (STB/day)", yaxis_title="Pwf (psi)",
+                           yaxis=dict(range=[-Pr * 0.06, Pr * 1.08]), xaxis=dict(rangemode="tozero"),
+                           height=560, margin=dict(t=60, b=60, l=60, r=30))
+        st.plotly_chart(fig, use_container_width=True)
+
+        best_present = avg_err.loc[avg_err["Average absolute error (%)"].idxmin()]
+        worst_present = avg_err.loc[avg_err["Average absolute error (%)"].idxmax()]
+        spread = worst_present["Average absolute error (%)"] - best_present["Average absolute error (%)"]
+        st.subheader("Conclusion")
+        if spread < 2:
+            st.info(
+                f"At the present reservoir pressure, all three methods track the actual test "
+                f"data closely and similarly — **{best_present['Method']}** has the lowest "
+                f"average error ({best_present['Average absolute error (%)']:.2f}%), but the "
+                f"spread across methods is only {spread:.2f} percentage points, so no method "
+                f"has a decisive edge here (see how closely the three curves hug the actual "
+                f"points above)."
+            )
+        else:
+            st.success(
+                f"At the present reservoir pressure, **{best_present['Method']}** fits the "
+                f"actual test data best, with an average error of "
+                f"{best_present['Average absolute error (%)']:.2f}% — "
+                f"{spread:.2f} points lower than {worst_present['Method']} "
+                f"({worst_present['Average absolute error (%)']:.2f}%), visible in the chart "
+                f"above as the curve tracking closest to the actual (diamond) points."
+            )
+
+        st.download_button("Download comparison table (CSV)", comp_df.to_csv(index=False).encode(),
+                            "well_b_compare_present.csv", key="cmp_present_dl")
+
+    else:  # Future
+        Prf = cc["Prf"]
+        st.caption(f"Future prediction at Pr,future = {Prf:,.0f} psi — the real 8-month "
+                   "repeat-test pressure — checked against the actual repeat test.")
+
+        c1, c2 = st.columns(2)
+        C1 = c1.number_input(
+            "Present New Correlation coefficient, C1  (fixes present (Qo)max)",
+            value=float(cc["C1_present"]), min_value=0.0, max_value=1.0, step=0.01,
+            key="cmp_c1_present_f",
+        )
+        C1_f = c2.number_input(
+            "Future New Correlation coefficient, C1,future  (shapes the future curve)",
+            value=float(cc["C1_future"]), min_value=0.0, max_value=1.0, step=0.01,
+            key="cmp_c1_future",
+        )
+
+        newc = new_correlation(Pr, cc["calib_pwf"], cc["calib_qo"], C1, Prf, C1_f)
+        vogel = new_correlation(Pr, cc["calib_pwf"], cc["calib_qo"], 0.2, Prf, 0.2)
+        fet = fetkovich(Pr, cc["fet_calib_pwf"], cc["fet_calib_qo"], Prf)
+
+        fut = cc["future_actual_table"]
+        pwf_pts = fut["Pwf"].values.astype(float)
+        actual = fut["Qo"].values.astype(float)
+        pred_new = eval_new_corr(pwf_pts, Prf, newc["Qomax_f"], C1_f)
+        pred_vog = eval_new_corr(pwf_pts, Prf, vogel["Qomax_f"], 0.2)
+        pred_fet = fet["Cf"] * (Prf ** 2 - pwf_pts ** 2) ** fet["n"]
+
+        st.subheader("Future test data table")
+        comp_df = pd.DataFrame({
+            "Pwf (psi)": pwf_pts, "Oil Rate — actual (bbl/day)": actual,
+            "New Correlation — Qo": pred_new, "Vogel's — Qo": pred_vog, "Fetkovich's — Qo": pred_fet,
+        })
+        st.dataframe(comp_df.style.format({c: "{:.2f}" for c in comp_df.columns[1:]}),
+                     use_container_width=True)
+
+        st.subheader("Percentage error (vs. actual repeat test)")
+        err_df = pd.DataFrame({
+            "New Correlation": pct_error(pred_new, actual),
+            "Vogel's": pct_error(pred_vog, actual),
+            "Fetkovich's": pct_error(pred_fet, actual),
+        })
+        st.dataframe(err_df.style.format("{:.2f}"), use_container_width=True)
+
+        st.subheader("Average absolute errors")
+        avg_err = pd.DataFrame({
+            "Method": ["New Correlation", "Vogel's", "Fetkovich's"],
+            "Average absolute error (%)": [np.nanmean(err_df[c]) for c in
+                                            ["New Correlation", "Vogel's", "Fetkovich's"]],
+        })
+        st.table(avg_err.style.format({"Average absolute error (%)": "{:.2f}"}))
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=newc["qo_f"], y=newc["pwf_f"], mode="lines", name="New Correlation"))
+        fig.add_trace(go.Scatter(x=vogel["qo_f"], y=vogel["pwf_f"], mode="lines", name="Vogel's"))
+        fig.add_trace(go.Scatter(x=fet["qo_f"], y=fet["pwf_f"], mode="lines", name="Fetkovich's"))
+        fig.add_trace(go.Scatter(x=actual, y=pwf_pts, mode="markers", name="Actual (repeat test)",
+                                  marker=dict(size=10, color="green", symbol="diamond")))
+        fig.update_layout(title="Future IPR curve — method comparison",
+                           xaxis_title="Qo (STB/day)", yaxis_title="Pwf (psi)",
+                           yaxis=dict(range=[-Prf * 0.06, Pr * 1.08]), xaxis=dict(rangemode="tozero"),
+                           height=560, margin=dict(t=60, b=60, l=60, r=30))
+        st.plotly_chart(fig, use_container_width=True)
+
+        best_future = avg_err.loc[avg_err["Average absolute error (%)"].idxmin()]
+        worst_future = avg_err.loc[avg_err["Average absolute error (%)"].idxmax()]
+        spread = worst_future["Average absolute error (%)"] - best_future["Average absolute error (%)"]
+        st.subheader("Conclusion")
+        if spread < 2:
+            st.info(
+                f"Predicting the real 8-month repeat test, all three methods land close "
+                f"together — **{best_future['Method']}** is lowest at "
+                f"{best_future['Average absolute error (%)']:.2f}%, but the gap to the "
+                f"others is small ({spread:.2f} points), so no method clearly outforecasts "
+                f"the rest here."
+            )
+        else:
+            st.success(
+                f"Predicting the real 8-month repeat test, **{best_future['Method']}** is "
+                f"clearly the most accurate forecaster, at {best_future['Average absolute error (%)']:.2f}% "
+                f"average error versus {worst_future['Average absolute error (%)']:.2f}% for "
+                f"{worst_future['Method']} — a {spread:.2f}-point gap. In the chart above, its "
+                f"dashed/solid curve sits closest to the actual repeat-test diamonds, especially "
+                f"at the higher flow rates where the other methods' curves diverge more."
+            )
+
+        st.download_button("Download comparison table (CSV)", comp_df.to_csv(index=False).encode(),
+                            "well_b_compare_future.csv", key="cmp_future_dl")
+
 st.divider()
-st.caption("Built with Streamlit · IPR formulas: constant-J, Vogel (1968), and Fetkovich (1973) "
-           "empirical inflow performance relationships.")
+st.caption("Built with Streamlit · IPR formulas: constant-J, Vogel (1968), Fetkovich (1973), "
+           "and a generalized Vogel-type 'New Correlation' with Eickmeier future scaling.")
