@@ -48,4 +48,4 @@ Click the **Open in GitHub Codespaces** badge above — the container builds aut
 up next
 - [ ] TPR (Tubing Performance Relation) curve overlay for nodal analysis
 - [ ] Theoretical (Darcy) productivity index comparison using reservoir/well parameters.
-applink(https://ipr-app-divya78558.streamlit.app/)
+- applink(https://divya-revu-ipranalysisapp-78558.streamlit.app/)
